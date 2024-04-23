@@ -1,6 +1,7 @@
 package com.hmdp.service.impl;
 
 import cn.hutool.core.bean.BeanUtil;
+import cn.hutool.core.bean.copier.CopyOptions;
 import cn.hutool.core.lang.UUID;
 import cn.hutool.core.util.RandomUtil;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
@@ -99,12 +100,12 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
          */
 
         String tokenKey=LOGIN_USER_KEY+token;
-        Map<String, Object> map = BeanUtil.beanToMap(userDTO);
-        map.forEach((key, value) -> {
-            if (null != value) map.put(key, String.valueOf(value));
-        });
+        Map<String, Object> userMap = BeanUtil.beanToMap(userDTO, new HashMap<>(),
+                CopyOptions.create()
+                        .setIgnoreNullValue(true)
+                        .setFieldValueEditor((fieldName, fieldValue) -> fieldValue.toString()));
         //存储到redis当中
-        stringRedisTemplate.opsForHash().putAll(tokenKey,map);
+        stringRedisTemplate.opsForHash().putAll(tokenKey,userMap);
         //设置token的有效期，应该是最近一次访问之后的有效期--应该在每次拦截器校验的时候更新有效期
         stringRedisTemplate.expire(tokenKey,LOGIN_USER_TTL,TimeUnit.MINUTES);
 
