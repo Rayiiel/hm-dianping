@@ -13,6 +13,7 @@ import com.hmdp.mapper.UserMapper;
 import com.hmdp.service.IUserService;
 import com.hmdp.utils.RedisConstants;
 import com.hmdp.utils.RegexUtils;
+import com.hmdp.utils.UserHolder;
 import lombok.Builder;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
@@ -56,9 +57,9 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
             return Result.fail("手机号格式不正确，请重新输入");
         }
         //2.生成验证码
-        int[] code = RandomUtil.randomInts(6);
-        //3.保存验证码到当前的session当中
-        stringRedisTemplate.opsForValue().set(LOGIN_CODE_KEY+phone,code.toString(),LOGIN_CODE_TTL, TimeUnit.MINUTES);
+        String code = RandomUtil.randomNumbers(6);
+        //3.保存验证码到redis当中
+        stringRedisTemplate.opsForValue().set(LOGIN_CODE_KEY+phone,code,LOGIN_CODE_TTL, TimeUnit.MINUTES);
         //4.发送验证码
         log.info("发送验证码成功，验证码为{}",code);
         //5.返回
@@ -80,7 +81,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         //2.验证当前验证码和本地的是否一致
         String cacheCode=stringRedisTemplate.opsForValue().get(LOGIN_CODE_KEY+phone);
         String code=loginForm.getCode();
-        if(code!=null&&code.equals(cacheCode)){
+        if(code==null||!code.equals(cacheCode)){
             return Result.fail("验证码不正确");
         }
         //3.按照手机号查找用户，找到登陆成功

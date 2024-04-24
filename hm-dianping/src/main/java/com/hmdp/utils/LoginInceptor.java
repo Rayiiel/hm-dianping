@@ -4,6 +4,7 @@ import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.util.StrUtil;
 import com.hmdp.dto.UserDTO;
 import com.hmdp.entity.User;
+import lombok.extern.slf4j.Slf4j;
 import org.omg.CORBA.Object;
 import org.springframework.beans.BeanUtils;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -19,50 +20,25 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import static com.hmdp.utils.RedisConstants.LOGIN_USER_TTL;
+import static jdk.nashorn.internal.runtime.regexp.joni.Config.log;
 
 /**
  * @Author: IIE
  * @name: LoginInceptor
  * @Date: 2024/4/23
  */
+@Component
 public class LoginInceptor implements HandlerInterceptor {
-    //不能使用Autowired进行注入，使用构造函数注入
-    private StringRedisTemplate stringRedisTemplate;
 
-    public LoginInceptor(StringRedisTemplate stringRedisTemplate) {
-        this.stringRedisTemplate = stringRedisTemplate;
-    }
-
-    public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
-        //1.获取请求头中的token
-        String token = request.getHeader("authorization");
-        if(StrUtil.isBlank(token)){
+    @Override
+    public boolean preHandle(HttpServletRequest request, HttpServletResponse response, java.lang.Object handler) throws Exception {
+        System.out.println("拦截器执行");
+        //判断要不要拦截
+        if(UserHolder.getUser()==null){
             response.setStatus(401);
             return false;
+        }else{
+            return true;
         }
-        String tokenKey=RedisConstants.LOGIN_USER_KEY+token;
-        //2.获取redis中的用户
-        Map<java.lang.Object, java.lang.Object> userMap = stringRedisTemplate.opsForHash().entries(tokenKey);
-
-        //3.判断当前用户是否存在
-        if(userMap==null){
-            //返回401状态码
-            response.setStatus(401);
-            return false;
-        }
-        //4.当前用户存在，保存在当前线程下
-        //4.1 将userMap转换为UserDTO
-        UserDTO userDTO=BeanUtil.fillBeanWithMap(userMap,new UserDTO(),false);
-
-        UserHolder.saveUser(userDTO);
-
-        //5.刷新token的有效期
-        stringRedisTemplate.expire(tokenKey,LOGIN_USER_TTL, TimeUnit.MINUTES);
-        return true;
-    }
-
-
-    public void afterCompletion(HttpServletRequest request, HttpServletResponse response, Object handler, @Nullable Exception ex) throws Exception {
-        UserHolder.removeUser();
     }
 }
