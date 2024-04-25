@@ -39,7 +39,6 @@ public class RefreshTokenInterceptor implements HandlerInterceptor {
      */
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, java.lang.Object handler) throws Exception {
-        System.out.println("拦截器执行");
         //1.获取请求头中的token
         String token = request.getHeader("authorization");
         if(StrUtil.isBlank(token)){
@@ -47,7 +46,8 @@ public class RefreshTokenInterceptor implements HandlerInterceptor {
         }
         String tokenKey=RedisConstants.LOGIN_USER_KEY+token;
         //2.获取redis中的用户
-        Map<java.lang.Object, java.lang.Object> userMap = stringRedisTemplate.opsForHash().entries(tokenKey);
+        Map<java.lang.Object, java.lang.Object> userMap = stringRedisTemplate
+                .opsForHash().entries(tokenKey);
 
         //3.判断当前用户是否存在
         if(userMap.isEmpty()){
