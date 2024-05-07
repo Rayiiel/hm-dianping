@@ -9,9 +9,11 @@ import com.hmdp.service.IVoucherOrderService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.hmdp.service.IVoucherService;
 import com.hmdp.utils.RedisIdWorker;
+import com.hmdp.utils.SimpleRedisLock;
 import com.hmdp.utils.UserHolder;
 import org.springframework.aop.framework.AopContext;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -34,6 +36,9 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
     @Autowired
     private RedisIdWorker redisIdWorker;
 
+    @Autowired
+    private StringRedisTemplate stringRedisTemplate;
+
     @Override
     public Result seckillVoucher(Long voucherId) {
         //1.查询优惠券
@@ -53,10 +58,22 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
         }
         Long userId= UserHolder.getUser().getId();
 
-        //事务使用的是代理对象进行的，所以要获取代理对象再进行调用对应的与事务有关的函数
-        synchronized (userId.toString().intern()){
-            IVoucherOrderService proxy =(IVoucherOrderService) AopContext.currentProxy();
+//        //事务使用的是代理对象进行的，所以要获取代理对象再进行调用对应的与事务有关的函数
+//        synchronized (userId.toString().intern()){
+//            IVoucherOrderService proxy =(IVoucherOrderService) AopContext.currentProxy();
+//            return proxy.createVoucherOrder(voucherId);
+//        }
+        //集群问题下的一人一单问题
+        SimpleRedisLock simpleRedisLock = new SimpleRedisLock(stringRedisTemplate, "order" + userId);
+        boolean isLock = simpleRedisLock.tryLock(20);
+        if(!isLock){
+            return Result.fail("每个人只限抢购一单");
+        }
+        try {
+            IVoucherOrderService proxy=(IVoucherOrderService) AopContext.currentProxy();
             return proxy.createVoucherOrder(voucherId);
+        } finally {
+            simpleRedisLock.unLock();
         }
     }
 
