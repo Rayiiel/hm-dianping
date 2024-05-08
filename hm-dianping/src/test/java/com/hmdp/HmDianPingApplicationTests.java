@@ -5,6 +5,7 @@ import com.hmdp.utils.RedisIdWorker;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.data.redis.core.StringRedisTemplate;
 
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -19,6 +20,10 @@ class HmDianPingApplicationTests {
     private RedisIdWorker redisIdWorker;
 
     private ExecutorService es= Executors.newFixedThreadPool(500);
+
+    @Autowired
+    private StringRedisTemplate stringRedisTemplate;
+
     @Test
     public void save() throws InterruptedException {
         shopService.saveShop2Redis(1L,15L);
@@ -42,4 +47,5 @@ class HmDianPingApplicationTests {
         long end=System.currentTimeMillis();
         System.out.println("time="+(end-begin));
     }
+
 }

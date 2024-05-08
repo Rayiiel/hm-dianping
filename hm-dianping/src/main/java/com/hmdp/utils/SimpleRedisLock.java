@@ -23,6 +23,7 @@ public class SimpleRedisLock implements ILock {
 
     private String ID_PROFIX= UUID.randomUUID().toString(true)+"-";
 
+    //关于释放锁的Lua脚本
     private static final DefaultRedisScript<Long> UNLOCK_SCRIPT;
     static {
         UNLOCK_SCRIPT=new DefaultRedisScript<>();
