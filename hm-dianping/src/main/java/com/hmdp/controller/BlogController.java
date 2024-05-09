@@ -30,6 +30,11 @@ public class BlogController {
     @Resource
     private IBlogService blogService;
 
+    /**
+     * 发布笔记
+     * @param blog
+     * @return
+     */
     @PostMapping
     public Result saveBlog(@RequestBody Blog blog) {
         // 获取登录用户
@@ -41,11 +46,21 @@ public class BlogController {
         return Result.ok(blog.getId());
     }
 
+    /**
+     * 点赞笔记
+     * @param id
+     * @return
+     */
     @PutMapping("/like/{id}")
     public Result likeBlog(@PathVariable("id") Long id) {
         return blogService.likeBlog(id);
     }
 
+    /**
+     * 显示我发布的笔记
+     * @param current
+     * @return
+     */
     @GetMapping("/of/me")
     public Result queryMyBlog(@RequestParam(value = "current", defaultValue = "1") Integer current) {
         // 获取登录用户
@@ -58,13 +73,49 @@ public class BlogController {
         return Result.ok(records);
     }
 
+    /**
+     * 查看热门笔记
+     * @param current
+     * @return
+     */
     @GetMapping("/hot")
     public Result queryHotBlog(@RequestParam(value = "current", defaultValue = "1") Integer current) {
         return blogService.queryHotBlog(current);
     }
 
+    /**
+     * 根据id查询笔记
+     * @param id
+     * @return
+     */
     @GetMapping("/{id}")
     public Result queryBlogById(@PathVariable String id){
         return blogService.queryBlogById(id);
     }
+
+    /**
+     * 点赞列表
+     * @param id
+     * @return
+     */
+    @GetMapping("/likes/{id}")
+    public Result queryBlogLikes(@PathVariable("id") Long id) {
+        return blogService.queryBlogLikes(id);
+    }
+
+    /**
+     *
+     * @param current
+     * @return
+     */
+    @GetMapping("/of/user")
+    public Result queryMyBlog(@RequestParam Long id,@RequestParam(value = "current", defaultValue = "1") Integer current) {
+        // 根据用户查询
+        Page<Blog> page = blogService.query()
+                .eq("user_id", id).page(new Page<>(current, SystemConstants.MAX_PAGE_SIZE));
+        // 获取当前页数据
+        List<Blog> records = page.getRecords();
+        return Result.ok(records);
+    }
+
 }
