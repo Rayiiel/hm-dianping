@@ -272,7 +272,6 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
 //            }
 //        }
 //        //4.为0，将信息添加到阻塞队列里面
-//        //TODO 保存阻塞队列
 //        //4.生成订单
 //        VoucherOrder voucherOrder=new VoucherOrder();
 //        //4.1 订单id

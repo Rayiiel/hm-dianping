@@ -43,6 +43,7 @@ public class Blog implements Serializable {
     /**
      * 用户图标
      */
+    //TableField是只这两个字段不属于数据库的数据
     @TableField(exist = false)
     private String icon;
     /**
