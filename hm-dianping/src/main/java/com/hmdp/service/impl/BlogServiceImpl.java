@@ -3,27 +3,36 @@ package com.hmdp.service.impl;
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.util.BooleanUtil;
 import cn.hutool.core.util.StrUtil;
+import com.baomidou.mybatisplus.extension.conditions.query.QueryChainWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.hmdp.dto.Result;
+import com.hmdp.dto.ScrollResult;
 import com.hmdp.dto.UserDTO;
 import com.hmdp.entity.Blog;
+import com.hmdp.entity.Follow;
 import com.hmdp.entity.User;
 import com.hmdp.mapper.BlogMapper;
 import com.hmdp.service.IBlogService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.hmdp.service.IFollowService;
 import com.hmdp.service.IUserService;
 import com.hmdp.utils.SystemConstants;
 import com.hmdp.utils.UserHolder;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.ZSetOperations;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
 import java.time.DayOfWeek;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
 import static com.hmdp.utils.RedisConstants.BLOG_LIKED_KEY;
+import static com.hmdp.utils.RedisConstants.FEED_KEY;
 
 /**
  * <p>
@@ -39,7 +48,34 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
     private IUserService userService;
 
     @Resource
+    private IFollowService followService;
+
+    @Resource
     private StringRedisTemplate stringRedisTemplate;
+
+    /**
+     * 发布博客
+     * @param blog
+     * @return
+     */
+    @Override
+    public Result saveBlog(Blog blog) {
+        // 获取登录用户
+        UserDTO user = UserHolder.getUser();
+        blog.setUserId(user.getId());
+        // 保存探店博文
+        save(blog);
+        // 推送博文到粉丝的收件箱里面
+        String keyPix=FEED_KEY;
+        List<Follow> follows = followService.query().eq("follow_user_id", user.getId()).list();
+        for (Follow follow:follows) {
+            Long fansId=follow.getUserId();
+            stringRedisTemplate.opsForZSet()
+                    .add(FEED_KEY+fansId,blog.getId().toString(), System.currentTimeMillis());
+        }
+        // 返回id
+        return Result.ok(blog.getId());
+    }
 
     /**
      * 根据id查询博客
@@ -54,7 +90,6 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
             return Result.fail("笔记不存在");
         }
         blogInfo(blog);
-
 
         return Result.ok(blog);
     }
@@ -136,6 +171,7 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
         return Result.ok(userDTOS);
     }
 
+
     /**
      * 查看blog的其它属性
      * @param blog
@@ -167,4 +203,45 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
     }
 
 
+    /**
+     * 滚动式显示关注发布的最新博客
+     * @param lastId
+     * @param offSet
+     * @return
+     */
+    @Override
+    public Result queryFollowBlog(Long lastId, Integer offSet) {
+
+        //1.获取当前用户收件箱中的博客id
+        Long userId=UserHolder.getUser().getId();
+        String key=FEED_KEY+userId;
+        Set<ZSetOperations.TypedTuple<String>> typedTuples = stringRedisTemplate.opsForZSet()
+                .reverseRangeByScoreWithScores(key, 0, lastId, offSet, 2);
+
+        if(typedTuples==null||typedTuples.isEmpty()){
+            return Result.ok();
+        }
+        //2.根据id获得返回列表，并记录要返回的lastId和offSet
+        Long minTime=0L;
+        Integer offset=1;
+        ArrayList<Blog> blogs = new ArrayList<>();
+        for (ZSetOperations.TypedTuple<String> typedTuple:typedTuples) {
+            String value = typedTuple.getValue();
+            Long score = typedTuple.getScore().longValue();
+            Blog blog = getById(Long.valueOf(value));
+            blogs.add(blog);
+            if(score.equals(minTime)){
+                offset++;
+            }else{
+                minTime=score;
+                offset=1;
+            }
+        }
+        //3.封装返回结果
+        ScrollResult r = new ScrollResult();
+        r.setList(blogs);
+        r.setOffset(offset);
+        r.setMinTime(minTime);
+        return Result.ok(r);
+    }
 }

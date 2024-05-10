@@ -21,4 +21,14 @@ public interface IBlogService extends IService<Blog> {
     Result likeBlog(Long id);
 
     Result queryBlogLikes(Long id);
+
+    Result saveBlog(Blog blog);
+
+    /**
+     * 查看关注用户发布的最新博客
+     * @param lastId
+     * @param offSet
+     * @return
+     */
+    Result queryFollowBlog(Long lastId, Integer offSet);
 }
